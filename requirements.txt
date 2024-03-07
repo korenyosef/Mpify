@@ -1,4 +1,0 @@
-google-api-python-client
-pytube
-requests
-python-dotenv
