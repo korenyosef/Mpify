@@ -40,8 +40,12 @@ def song_names(id):
     headers = get_auth_header(token)
     result = get(url=f"https://api.spotify.com/v1/playlists/{id}/tracks", headers=headers)
     json_result = json.loads(result.content)
+    if "error" in json_result and json_result["error"]["status"] == 404:
+        print("Error: Invalid playlist ID. Please enter a valid ID or URL.")
+        return None
     songs = []
     for x in range(20):
+        print(json_result)
         jsonX = json_result["items"][x]["track"]["name"]
         x =+ x
         songs.append(jsonX)
@@ -59,27 +63,41 @@ def extract_playlist_id(url_or_id):
     
     return id
 
-url_or_id = str(input("Enter public spotify ID/URL: "))
+if __name__ == "__main__":
+    try:
+        while True:
+            url_or_id = str(input("Enter public Spotify ID/URL: "))
+            id = extract_playlist_id(url_or_id)
+            
+            songs = song_names(id)
+            
+            if songs is not None:
+                break
+            
+        for song in songs:
+            request = youtube.search().list(
+                part="snippet",
+                maxResults=1,
+                q=song
+            )
+            time.sleep(1)
+            response = request.execute()
+            time.sleep(3)
+            
+            if "error" in response:
+                print(f"Error searching for '{song}': {response['error']['message']}")
+                continue
+            
+            res = response["items"][0]["id"]["videoId"]
+            yt = YouTube(f"https://www.youtube.com/watch?v={res}")
+            audio = yt.streams.filter(only_audio = True).first()
+            destination = './music'
+            out_file = audio.download(output_path=destination) 
+            base, ext = os.path.splitext(out_file)
+            new_file = base + '.mp3'
+            os.rename(out_file, new_file)
+            print(yt.title + " has been successfully downloaded.")
 
-id = extract_playlist_id(url_or_id)
-
-songs = song_names(id)
-for song in songs:
-    request = youtube.search().list(
-        part="snippet",
-        maxResults=1,
-        q=song
-    )
-    time.sleep(1)
-    response = request.execute()
-    time.sleep(3)
-    res = response["items"][0]["id"]["videoId"]
-    yt = YouTube(f"https://www.youtube.com/watch?v={res}")
-    audio = yt.streams.filter(only_audio = True).first()
-    destination = './music'
-    out_file = audio.download(output_path=destination) 
-    base, ext = os.path.splitext(out_file)
-    new_file = base + '.mp3'
-    os.rename(out_file, new_file)
-    print(yt.title + " has been successfully downloaded.")
-print("Finished downloading your music, thanks for using Mpify.")
+        print("Finished downloading your music, thanks for using Mpify.")
+    except KeyboardInterrupt:
+        print("\nProgram interrupted by user. Exiting.")
